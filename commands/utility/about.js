@@ -1,8 +1,8 @@
 import { MessageFlags, SlashCommandBuilder } from "discord.js"
 
 export const data = new SlashCommandBuilder()
-  .setName('verify')
-  .setDescription('Sends the verify message in selected channel. Only use if you are sigma')
+  .setName('about')
+  .setDescription('Provides information about the bot')
   .addChannelOption(option => option.setName('channel').setDescription('The channel to send the message in').setRequired(true))
 
 /**
