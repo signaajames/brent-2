@@ -10,13 +10,10 @@ export const data = new SlashCommandBuilder()
 
 // Embed:
 const embed = new EmbedBuilder()
-  .setTitle('Verify yourself NOW')
-  .setDescription('Click the button below to get verified.')
-  .setColor('#0791e7')
-  // .setFooter({ text: 'Brent-2', iconURL: 'url' })
-  // .setTimestamp()              // current time at footer
-  // .addFields(
-  // )
+  .setTitle('Verification')
+  .setDescription('Click the button to start the verification process. We do this to prevent people using an alt to evade bans. And to show you\'re a functioning human that isn\'t some 8 year old. This works pretty much exactly like **double counter**.')
+  .setColor("Blue")
+  .setFooter({ text: '-in dev' })
 
 // Button:
 const button = new ButtonBuilder()
@@ -33,4 +30,5 @@ export async function execute(interaction) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral })
   const channel = interaction.options.getChannel('channel')
   await channel.send({ embeds: [embed], components: [row] })
+  console.log(interaction.user.username, "sent the verify message in", channel.name)
 }
