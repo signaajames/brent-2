@@ -17,5 +17,5 @@ export async function execute(interaction) {
   const channel = interaction.options.getChannel('channel')
   await interaction.deferReply({ flags: MessageFlags.Ephemeral })
   await interaction.deleteReply();
-  await channel.send(getAboutInfo())
+  await channel.send(await getAboutInfo())
 }
