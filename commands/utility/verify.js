@@ -13,7 +13,6 @@ const embed = new EmbedBuilder()
   .setTitle('Verification')
   .setDescription('Click the button to start the verification process. We do this to prevent people using an alt to evade bans. And to show you\'re a functioning human that isn\'t some 8 year old. This works pretty much exactly like **double counter**.')
   .setColor("Blue")
-  .setFooter({ text: '-in dev' })
 
 // Button:
 const button = new ButtonBuilder()

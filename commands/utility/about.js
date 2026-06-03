@@ -4,7 +4,7 @@ export const data = new SlashCommandBuilder()
   .setName('about')
   .setDescription('Provides information about the bot')
 
-async function getAboutInfo() {
+function getAboutInfo() {
     return 'I\'m the second generation other purpose Brent(ley) bot, meant to verify users like double counter.'
 }
 
