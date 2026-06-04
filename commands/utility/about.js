@@ -14,5 +14,5 @@ function getAboutInfo() {
 export async function execute(interaction) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral })
   await interaction.deleteReply();
-  await interaction.channel.send(await getAboutInfo())
+  await interaction.channel.send(getAboutInfo())
 }

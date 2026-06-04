@@ -18,6 +18,7 @@ const embed = new EmbedBuilder()
 const button = new ButtonBuilder()
   .setCustomId('verify_button')
   .setLabel('Verify')
+  .setURL('https://brent2.github.io')
   .setStyle(ButtonStyle.Primary)
 
 const row = new ActionRowBuilder().addComponents(button)
