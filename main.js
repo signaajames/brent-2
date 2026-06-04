@@ -24,7 +24,12 @@ client.on(Events.InteractionCreate, async interaction => {
     } else if (interaction.isButton()) {
         if (!interaction.customId.startsWith('verify:')) return;
 
-        
+        try {
+            await commands.get('verify').button(interaction)
+        } catch (e) {
+            if (e.code === 10062) return
+            console.error(`Button interaction ${interaction.customId} failed:`, e.message)
+        }
     }
 })
 
