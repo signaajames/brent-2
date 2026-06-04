@@ -89,7 +89,7 @@ async function checkVerified() {
 
 client.once(Events.ClientReady, (readyClient) => {
     console.log(`Ready! Logged in as ${readyClient.user.tag}`)
-    setInterval(checkVerified, 10000)
+    setInterval(checkVerified, 5000)
 })
 
 client.login(process.env.BOT_TOKEN)
