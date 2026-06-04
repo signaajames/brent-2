@@ -11,16 +11,20 @@ for (const cmd of modules) {
 }
 
 client.on(Events.InteractionCreate, async interaction => {
-    if (!interaction.isChatInputCommand()) return
+    if (interaction.isChatInputCommand()) {
+        const cmd = commands.get(interaction.commandName)
+        if (!cmd) return
+    
+        try {
+            await cmd.execute(interaction)
+        } catch (e) {
+            if (e.code === 10062) return
+            console.error(`Command ${interaction.commandName} failed:`, e.message)
+        }
+    } else if (interaction.isButton()) {
+        if (!interaction.customId.startsWith('verify:')) return;
 
-    const cmd = commands.get(interaction.commandName)
-    if (!cmd) return
-
-    try {
-        await cmd.execute(interaction)
-    } catch (e) {
-        if (e.code === 10062) return
-        console.error(`Command ${interaction.commandName} failed:`, e.message)
+        
     }
 })
 
