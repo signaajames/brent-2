@@ -11,17 +11,18 @@ export const data = new SlashCommandBuilder()
   .addRoleOption(option => option.setName('role').setDescription('The role to give upon verification').setRequired(true))
 
   export async function execute(interaction) {
+  console.log(`[exec] /verify started by ${interaction.user.id}`)
   await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+  console.log(`[exec] deferred reply`)
   const channel = interaction.options.getChannel('channel')
   const role = interaction.options.getRole('role')
+  console.log(`[exec] channel=${channel.id} role=${role.id}`)
 
-  // Embed:
   const embed = new EmbedBuilder()
     .setTitle('Verification')
     .setDescription('Click the button to start the verification process. We do this to prevent people using an alt to evade bans. And to show you\'re a functioning human that isn\'t some 8 year old. This works pretty much exactly like **double counter**.')
     .setColor("Blue")
 
-  // Button:
   const button = new ButtonBuilder()
     .setCustomId('verify:' + role.id)
     .setLabel('Verify')
@@ -30,35 +31,47 @@ export const data = new SlashCommandBuilder()
   const row = new ActionRowBuilder().addComponents(button)
 
   await channel.send({ embeds: [embed], components: [row] })
-  console.log(interaction.user.username, "sent the verify message in", channel.name)
+  console.log(`[exec] embed sent to ${channel.name}`)
 }
 
 export async function button(interaction) {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral })
-    const [action, roleID] = interaction.customId.split(':')
-    // Checks
-    if (action !== 'verify') {console.log('action is not verify, it is:', action); return;}
-    
-    const token = crypto.randomUUID();
-    console.log(token);
+  console.log(`[btn] button clicked by ${interaction.user.id}, customId=${interaction.customId}`)
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral })
+  console.log(`[btn] deferred`)
+  const [action, roleID] = interaction.customId.split(':')
+  if (action !== 'verify') { console.log(`[btn] wrong action: ${action}`); return; }
+  console.log(`[btn] roleID=${roleID}`)
 
-    await supabase.from('verification_tokens').insert({
-      token,
-      user_id: interaction.user.id,
-      ip: null,
-      verified: false,
-    })
+  const token = crypto.randomUUID();
+  console.log(`[btn] token=${token}`)
 
-    const link = `https://brenttwo.github.io/verify?token=${token}`
+  console.log(`[btn] inserting into supabase...`)
+  await supabase.from('verification_tokens').insert({
+    token,
+    user_id: interaction.user.id,
+    role_id: roleID,
+    guild_id: interaction.guildId,
+    ip: null,
+    verified: false,
+    notified: false,
+  })
+  console.log(`[btn] supabase insert done`)
 
-    // Create the embed
-    const embed = new EmbedBuilder()
-      .setTitle('Verification')
-      .setDescription(`This server doesn't like alt accounts. So kindly verify very quickly to ensure you are a functioning human being. [Click here if the button doesn\'t work](${link})`)
-      .setColor("Green")
+  const link = `https://brenttwo.github.io/verify?token=${token}`
 
-    try {
-      await interaction.user.send({ embeds: [embed] })
-    } catch (error) { console.error(error.message); if (error.code === 10062) return; await interaction.editReply(`Couldn't DM you. Open this: ${link}`)}
+  const embed = new EmbedBuilder()
+    .setTitle('Verification')
+    .setDescription(`This server doesn't like alt accounts. So kindly verify very quickly to ensure you are a functioning human being. [Click here if the button doesn\'t work](${link})`)
+    .setColor("Green")
 
+  try {
+    console.log(`[btn] sending DM...`)
+    await interaction.user.send({ embeds: [embed] })
+    console.log(`[btn] DM sent`)
+    await interaction.editReply('Check your DMs!')
+    console.log(`[btn] editReply done`)
+  } catch (error) {
+    console.error(`[btn] DM failed:`, error.message)
+    await interaction.editReply(`Couldn't DM you. Open this: ${link}`)
+  }
 }
