@@ -19,9 +19,8 @@ export const data = new SlashCommandBuilder()
   console.log(`[exec] channel=${channel.id} role=${role.id}`)
 
   const embed = new EmbedBuilder()
-    .setTitle('Verification')
     .setDescription('Click the button to start the verification process. We do this to prevent people using an alt to evade bans. And to show you\'re a functioning human that isn\'t some 8 year old. This works pretty much exactly like **double counter**.')
-    .setColor("Blue")
+    .setColor("Green")
 
   const button = new ButtonBuilder()
     .setCustomId('verify:' + role.id)
@@ -46,7 +45,7 @@ export async function button(interaction) {
   console.log(`[btn] token=${token}`)
 
   console.log(`[btn] inserting into supabase...`)
-  await supabase.from('verification_tokens').insert({
+  const { error: insertError } = await supabase.from('verification_tokens').insert({
     token,
     user_id: interaction.user.id,
     role_id: roleID,
@@ -55,21 +54,34 @@ export async function button(interaction) {
     verified: false,
     notified: false,
   })
+  if (insertError) {
+    console.error(`[btn] supabase insert failed:`, insertError)
+    await interaction.editReply('Failed to create verification token. Try again later.')
+    return
+  }
   console.log(`[btn] supabase insert done`)
 
   const link = `https://brenttwo.github.io/verify?token=${token}`
 
   const embed = new EmbedBuilder()
-    .setTitle('Verification')
-    .setDescription(`This server doesn't like alt accounts. So kindly verify very quickly to ensure you are a functioning human being. [Click here if the button doesn\'t work](${link})`)
+    .setDescription(`This server doesn't like alt accounts. So kindly verify very quickly to ensure you are a functioning human being.`)
     .setColor("Green")
+
+  const button = new ButtonBuilder()
+    .setLabel('Verify')
+    .setURL(link)
+    .setStyle(ButtonStyle.Link)
+
+  const row = new ActionRowBuilder().addComponents(button)
 
   try {
     console.log(`[btn] sending DM...`)
-    await interaction.user.send({ embeds: [embed] })
+    await interaction.user.send({ embeds: [embed], components: [row] })
     console.log(`[btn] DM sent`)
     await interaction.editReply('Check your DMs!')
     console.log(`[btn] editReply done`)
+    await new Promise(r => setTimeout(r, 1000))
+    await interaction.deleteReply()
   } catch (error) {
     console.error(`[btn] DM failed:`, error.message)
     await interaction.editReply(`Couldn't DM you. Open this: ${link}`)

@@ -37,27 +37,52 @@ client.on(Events.InteractionCreate, async interaction => {
 })
 
 async function checkVerified() {
+    console.log(`[poll] checking for verified rows...`)
     const { data, error } = await supabase
         .from('verification_tokens')
         .select('*')
         .eq('verified', true)
         .eq('notified', false)
 
-    if (error || !data?.length) return
+    if (error) { console.error(`[poll] query error:`, error); return }
+    if (!data?.length) { console.log(`[poll] no rows found`); return }
 
+    console.log(`[poll] found ${data.length} row(s) to process`)
     for (const row of data) {
+        console.log(`[poll] processing user=${row.user_id} role=${row.role_id} ip=${row.ip}`)
         try {
-            await fetch(
+            const { data: dupes } = await supabase
+                .from('verification_tokens')
+                .select('user_id')
+                .eq('ip', row.ip)
+                .eq('verified', true)
+                .neq('user_id', row.user_id)
+
+            if (dupes && dupes.length > 0) {
+                console.log(`[poll] duplicate IP (${row.ip}) flagged for user=${row.user_id}`)
+                await supabase.from('verification_tokens').update({ notified: true }).eq('token', row.token)
+                continue
+            }
+
+            const res = await fetch(
                 `https://discord.com/api/v10/guilds/${row.guild_id}/members/${row.user_id}/roles/${row.role_id}`,
                 { method: 'PUT', headers: { Authorization: `Bot ${process.env.BOT_TOKEN}` } }
             )
+            console.log(`[poll] role assign status: ${res.status}`)
+
+            if (!res.ok) {
+                console.error(`[poll] failed to assign role: ${res.status} ${res.statusText}`)
+                continue
+            }
 
             const user = await client.users.fetch(row.user_id)
             await user.send('✅ You have been verified!')
+            console.log(`[poll] DM sent`)
 
             await supabase.from('verification_tokens').update({ notified: true }).eq('token', row.token)
+            console.log(`[poll] marked notified`)
         } catch (e) {
-            console.error(`Failed to process verification for ${row.user_id}:`, e.message)
+            console.error(`[poll] failed for ${row.user_id}:`, e.message)
         }
     }
 }
