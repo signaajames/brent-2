@@ -1,6 +1,7 @@
 import { Client, Events, GatewayIntentBits } from 'discord.js';
 import { supabase } from './src/supabase.js'
 import fs from 'node:fs'
+import chalk from 'chalk'
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 const commands = new Map()
@@ -19,25 +20,25 @@ client.on(Events.InteractionCreate, async interaction => {
             await cmd.execute(interaction)
         } catch (e) {
             if (e.code === 10062) return
-            console.error(`Command ${interaction.commandName} failed:`, e.message)
+            console.error(chalk.red(`Command ${interaction.commandName} failed:`), e.message)
         }
     } else if (interaction.isButton()) {
-        console.log(`[main] button interaction: ${interaction.customId}`)
+        console.log(chalk.magenta(`[main] button interaction: ${interaction.customId}`))
         if (!interaction.customId.startsWith('verify:')) return;
 
         try {
             const cmd = commands.get('verify')
-            if (!cmd?.button) { console.log(`[main] verify command not found`); return; }
+            if (!cmd?.button) { console.log(chalk.magenta(`[main] verify command not found`)); return; }
             await cmd.button(interaction)
         } catch (e) {
             if (e.code === 10062) return
-            console.error(`Button interaction ${interaction.customId} failed:`, e.message)
+            console.error(chalk.red(`Button interaction ${interaction.customId} failed:`), e.message)
         }
     }
 })
 
 async function checkVerified() {
-    console.log(`[poll] checking for verified rows...`)
+    console.log(chalk.yellow(`[poll] checking for verified rows...`))
 
     await supabase
         .from('verification_tokens')
@@ -51,12 +52,12 @@ async function checkVerified() {
         .eq('verified', true)
         .eq('notified', false)
 
-    if (error) { console.error(`[poll] query error:`, error); return }
-    if (!data?.length) { console.log(`[poll] no rows found`); return }
+    if (error) { console.error(chalk.red(`[poll] query error:`), error); return }
+    if (!data?.length) { console.log(chalk.yellow(`[poll] no rows found`)); return }
 
-    console.log(`[poll] found ${data.length} row(s) to process`)
+    console.log(chalk.yellow(`[poll] found ${data.length} row(s) to process`))
     for (const row of data) {
-        console.log(`[poll] processing user=${row.user_id} role=${row.role_id} ip=${row.ip}`)
+        console.log(chalk.yellow(`[poll] processing user=${row.user_id} role=${row.role_id} ip=${row.ip}`))
         try {
             const { data: existing } = await supabase
                 .from('verification_tokens')
@@ -66,7 +67,7 @@ async function checkVerified() {
                 .neq('token', row.token)
 
             if (existing && existing.length > 0) {
-                console.log(`[poll] user already verified, flagging duplicate`)
+                console.log(chalk.yellow(`[poll] user already verified, flagging duplicate`))
                 await supabase.from('verification_tokens').update({ notified: true }).eq('token', row.token)
                 continue
             }
@@ -79,7 +80,7 @@ async function checkVerified() {
                 .neq('user_id', row.user_id)
 
             if (dupes && dupes.length > 0) {
-                console.log(`[poll] duplicate IP (${row.ip}) flagged for user=${row.user_id}`)
+                console.log(chalk.yellow(`[poll] duplicate IP (${row.ip}) flagged for user=${row.user_id}`))
                 await supabase.from('verification_tokens').update({ notified: true }).eq('token', row.token)
                 continue
             }
@@ -88,27 +89,27 @@ async function checkVerified() {
                 `https://discord.com/api/v10/guilds/${row.guild_id}/members/${row.user_id}/roles/${row.role_id}`,
                 { method: 'PUT', headers: { Authorization: `Bot ${process.env.BOT_TOKEN}` } }
             )
-            console.log(`[poll] role assign status: ${res.status}`)
+            console.log(chalk.yellow(`[poll] role assign status: ${res.status}`))
 
             if (!res.ok) {
-                console.error(`[poll] failed to assign role: ${res.status} ${res.statusText}`)
+                console.error(chalk.red(`[poll] failed to assign role: ${res.status} ${res.statusText}`))
                 continue
             }
 
             const user = await client.users.fetch(row.user_id)
             await user.send('✅ You have been verified!')
-            console.log(`[poll] DM sent`)
+            console.log(chalk.green(`[poll] DM sent`))
 
             await supabase.from('verification_tokens').update({ notified: true }).eq('token', row.token)
-            console.log(`[poll] marked notified`)
+            console.log(chalk.green(`[poll] marked notified`))
         } catch (e) {
-            console.error(`[poll] failed for ${row.user_id}:`, e.message)
+            console.error(chalk.red(`[poll] failed for ${row.user_id}:`), e.message)
         }
     }
 }
 
 client.once(Events.ClientReady, (readyClient) => {
-    console.log(`Ready! Logged in as ${readyClient.user.tag}`)
+    console.log(chalk.green(`Ready! Logged in as ${readyClient.user.tag}`))
     setInterval(checkVerified, 5000)
 })
 
