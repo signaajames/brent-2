@@ -20,7 +20,7 @@ export const data = new SlashCommandBuilder()
 
   const embed = new EmbedBuilder()
     .setDescription("To gain access to the server, you must complete verification. The process works similarly to **Double Counter** and only takes a moment.\nClick **Verify** below to begin.")
-    .setColor("Green")
+    .setColor("Blue")
 
   const button = new ButtonBuilder()
     .setCustomId('verify:' + role.id)
