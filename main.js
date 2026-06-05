@@ -38,6 +38,13 @@ client.on(Events.InteractionCreate, async interaction => {
 
 async function checkVerified() {
     console.log(`[poll] checking for verified rows...`)
+
+    await supabase
+        .from('verification_tokens')
+        .delete()
+        .eq('verified', false)
+        .lt('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
+
     const { data, error } = await supabase
         .from('verification_tokens')
         .select('*')
