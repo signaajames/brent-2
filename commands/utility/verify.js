@@ -19,7 +19,7 @@ export const data = new SlashCommandBuilder()
   console.log(`[exec] channel=${channel.id} role=${role.id}`)
 
   const embed = new EmbedBuilder()
-    .setDescription('Click the button to start the verification process. We do this to prevent people using an alt to evade bans. And to show you\'re a functioning human that isn\'t some 8 year old. This works pretty much exactly like **double counter**.')
+    .setDescription("To gain access to the server, you must complete verification. The process works similarly to **Double Counter** and only takes a moment.\nClick **Verify** below to begin.")
     .setColor("Green")
 
   const button = new ButtonBuilder()
@@ -40,6 +40,18 @@ export async function button(interaction) {
   const [action, roleID] = interaction.customId.split(':')
   if (action !== 'verify') { console.log(`[btn] wrong action: ${action}`); return; }
   console.log(`[btn] roleID=${roleID}`)
+
+  const { data: existing } = await supabase
+    .from('verification_tokens')
+    .select('id')
+    .eq('user_id', interaction.user.id)
+    .eq('verified', true)
+
+  if (existing && existing.length > 0) {
+    console.log(`[btn] user already verified`)
+    await interaction.editReply('You are already verified!')
+    return
+  }
 
   const token = crypto.randomUUID();
   console.log(`[btn] token=${token}`)
@@ -64,8 +76,8 @@ export async function button(interaction) {
   const link = `https://brenttwo.github.io/verify?token=${token}`
 
   const embed = new EmbedBuilder()
-    .setDescription(`This server doesn't like alt accounts. So kindly verify very quickly to ensure you are a functioning human being.`)
-    .setColor("Green")
+    .setDescription(`This server is protected by Signaa, DrSteeve/James's cat. This process helps prevent alt accounts and other forms of abuse.`)
+    .setColor("#555")
 
   const button = new ButtonBuilder()
     .setLabel('Verify')

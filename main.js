@@ -43,7 +43,7 @@ async function checkVerified() {
         .from('verification_tokens')
         .delete()
         .eq('verified', false)
-        .lt('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString())
+        .or(`created_at.lt.${new Date(Date.now() - 10 * 60 * 1000).toISOString()},created_at.is.null`)
 
     const { data, error } = await supabase
         .from('verification_tokens')
@@ -58,6 +58,19 @@ async function checkVerified() {
     for (const row of data) {
         console.log(`[poll] processing user=${row.user_id} role=${row.role_id} ip=${row.ip}`)
         try {
+            const { data: existing } = await supabase
+                .from('verification_tokens')
+                .select('id')
+                .eq('user_id', row.user_id)
+                .eq('verified', true)
+                .neq('token', row.token)
+
+            if (existing && existing.length > 0) {
+                console.log(`[poll] user already verified, flagging duplicate`)
+                await supabase.from('verification_tokens').update({ notified: true }).eq('token', row.token)
+                continue
+            }
+
             const { data: dupes } = await supabase
                 .from('verification_tokens')
                 .select('user_id')
