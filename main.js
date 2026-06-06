@@ -101,7 +101,7 @@ async function checkVerified() {
                     console.log(chalk.yellow(`[poll] vpn detected for user=${row.user_id}`))
                     try {
                         const user = await client.users.fetch(row.user_id)
-                        await user.send('You could not be verified because a VPN or proxy was detected. Disable your VPN and try again.')
+                        await user.send('❌ You could not be verified because a VPN or proxy was detected. Disable your VPN, click retry on the website, and try again.')
                     } catch {}
                     await supabase.from('verification_tokens').update({ notified: true, raw_ip: null }).eq('token', row.token)
                     continue

@@ -20,7 +20,8 @@ export const data = new SlashCommandBuilder()
   console.log(chalk.cyan(`[exec] channel=${channel.id} role=${role.id}`))
 
   const embed = new EmbedBuilder()
-    .setDescription("To gain access to the server, you must complete verification. The process works similarly to **Double Counter** and only takes a moment.\nClick **Verify** below to begin.")
+    .setTitle("Brent-2 Verification")
+    .setDescription("To gain access to the server, you must complete the very simple verification. The process works similarly to **Double Counter** and only takes a moment.\n*If you can't verify, DM the owner or admins*\n\nClick **Verify** below to begin.")
     .setColor("Blue")
 
   const button = new ButtonBuilder()
