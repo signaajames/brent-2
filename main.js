@@ -42,19 +42,21 @@ let polling = false
 async function checkVerified() {
     if (polling) return
     polling = true
-    console.log(chalk.yellow(`[poll] checking for verified rows...`))
+    console.log(chalk.yellow(`[poll] checking pending rows...`))
 
     await supabase
         .from('verification_tokens')
         .delete()
         .eq('verified', false)
+        .is('raw_ip', null)
         .or(`created_at.lt.${new Date(Date.now() - 10 * 60 * 1000).toISOString()},created_at.is.null`)
 
     const { data, error } = await supabase
         .from('verification_tokens')
         .select('*')
-        .eq('verified', true)
+        .eq('verified', false)
         .eq('notified', false)
+        .not('raw_ip', 'is', null)
 
     if (error) { console.error(chalk.red(`[poll] query error:`), error); polling = false; return }
     if (!data?.length) { console.log(chalk.yellow(`[poll] no rows found`)); polling = false; return }
@@ -68,10 +70,9 @@ async function checkVerified() {
                 .select('id')
                 .eq('user_id', row.user_id)
                 .eq('verified', true)
-                .neq('token', row.token)
 
             if (existing && existing.length > 0) {
-                console.log(chalk.yellow(`[poll] user already verified, flagging duplicate`))
+                console.log(chalk.yellow(`[poll] user already verified, blocking`))
                 await supabase.from('verification_tokens').update({ notified: true, raw_ip: null }).eq('token', row.token)
                 continue
             }
@@ -81,33 +82,34 @@ async function checkVerified() {
                 .select('user_id')
                 .eq('ip', row.ip)
                 .eq('verified', true)
-                .neq('user_id', row.user_id)
 
             if (dupes && dupes.length > 0) {
-                console.log(chalk.yellow(`[poll] duplicate IP (${row.ip}) flagged for user=${row.user_id}`))
+                console.log(chalk.yellow(`[poll] duplicate IP (${row.ip}) blocked for user=${row.user_id}`))
                 await supabase.from('verification_tokens').update({ notified: true, raw_ip: null }).eq('token', row.token)
                 continue
             }
 
             const VPN_EXEMPT_USERS = ['1383762956881235990']
 
-            if (row.raw_ip && !VPN_EXEMPT_USERS.includes(row.user_id)) {
+            if (!VPN_EXEMPT_USERS.includes(row.user_id)) {
                 console.log(chalk.yellow(`[poll] checking vpn for user=${row.user_id}`))
                 const vpnRes = await fetch(`https://proxycheck.io/v2/${row.raw_ip}?key=${process.env.PROXYCHECK_KEY}&vpn=1`)
                 const vpnData = await vpnRes.json()
                 const vpnInfo = vpnData[row.raw_ip]
                 console.log(chalk.yellow(`[poll] proxycheck response: ${JSON.stringify(vpnData)}`))
                 if (vpnInfo?.proxy === 'yes') {
-                    console.log(chalk.yellow(`[poll] vpn detected, removing role for user=${row.user_id}`))
-                    const delRes = await fetch(
-                        `https://discord.com/api/v10/guilds/${row.guild_id}/members/${row.user_id}/roles/${row.role_id}`,
-                        { method: 'DELETE', headers: { Authorization: `Bot ${process.env.BOT_TOKEN}` } }
-                    )
-                    console.log(chalk.yellow(`[poll] role remove status: ${delRes.status}`))
+                    console.log(chalk.yellow(`[poll] vpn detected for user=${row.user_id}`))
+                    try {
+                        const user = await client.users.fetch(row.user_id)
+                        await user.send('You could not be verified because a VPN or proxy was detected. Disable your VPN and try again.')
+                    } catch {}
                     await supabase.from('verification_tokens').update({ notified: true, raw_ip: null }).eq('token', row.token)
                     continue
                 }
             }
+
+            console.log(chalk.yellow(`[poll] vpn check passed, verifying user=${row.user_id}`))
+            await supabase.from('verification_tokens').update({ verified: true, raw_ip: null }).eq('token', row.token)
 
             const res = await fetch(
                 `https://discord.com/api/v10/guilds/${row.guild_id}/members/${row.user_id}/roles/${row.role_id}`,
@@ -117,6 +119,7 @@ async function checkVerified() {
 
             if (!res.ok) {
                 console.error(chalk.red(`[poll] failed to assign role: ${res.status} ${res.statusText}`))
+                await supabase.from('verification_tokens').update({ notified: true }).eq('token', row.token)
                 continue
             }
 
@@ -126,11 +129,6 @@ async function checkVerified() {
 
             await supabase.from('verification_tokens').update({ notified: true }).eq('token', row.token)
             console.log(chalk.green(`[poll] marked notified`))
-
-            if (row.raw_ip) {
-                await supabase.from('verification_tokens').update({ raw_ip: null }).eq('token', row.token)
-                console.log(chalk.green(`[poll] cleared raw_ip`))
-            }
         } catch (e) {
             console.error(chalk.red(`[poll] failed for ${row.user_id}:`), e.message)
         }
