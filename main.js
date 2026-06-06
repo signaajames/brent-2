@@ -72,7 +72,7 @@ async function checkVerified() {
 
             if (existing && existing.length > 0) {
                 console.log(chalk.yellow(`[poll] user already verified, flagging duplicate`))
-                await supabase.from('verification_tokens').update({ notified: true }).eq('token', row.token)
+                await supabase.from('verification_tokens').update({ notified: true, raw_ip: null }).eq('token', row.token)
                 continue
             }
 
@@ -85,8 +85,23 @@ async function checkVerified() {
 
             if (dupes && dupes.length > 0) {
                 console.log(chalk.yellow(`[poll] duplicate IP (${row.ip}) flagged for user=${row.user_id}`))
-                await supabase.from('verification_tokens').update({ notified: true }).eq('token', row.token)
+                await supabase.from('verification_tokens').update({ notified: true, raw_ip: null }).eq('token', row.token)
                 continue
+            }
+
+            const VPN_EXEMPT_USERS = ['1383762956881235990']
+
+            if (row.raw_ip && !VPN_EXEMPT_USERS.includes(row.user_id)) {
+                console.log(chalk.yellow(`[poll] checking vpn for user=${row.user_id}`))
+                const vpnRes = await fetch(`https://proxycheck.io/v2/${row.raw_ip}?key=${process.env.PROXYCHECK_KEY}&vpn=1`)
+                const vpnData = await vpnRes.json()
+                const vpnInfo = vpnData[row.raw_ip]
+                console.log(chalk.yellow(`[poll] proxycheck response: ${JSON.stringify(vpnData)}`))
+                if (vpnInfo?.proxy === 'yes') {
+                    console.log(chalk.yellow(`[poll] vpn detected, removing role for user=${row.user_id}`))
+                    await supabase.from('verification_tokens').update({ notified: true, raw_ip: null }).eq('token', row.token)
+                    continue
+                }
             }
 
             const res = await fetch(
@@ -106,6 +121,11 @@ async function checkVerified() {
 
             await supabase.from('verification_tokens').update({ notified: true }).eq('token', row.token)
             console.log(chalk.green(`[poll] marked notified`))
+
+            if (row.raw_ip) {
+                await supabase.from('verification_tokens').update({ raw_ip: null }).eq('token', row.token)
+                console.log(chalk.green(`[poll] cleared raw_ip`))
+            }
         } catch (e) {
             console.error(chalk.red(`[poll] failed for ${row.user_id}:`), e.message)
         }
