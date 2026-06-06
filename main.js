@@ -37,7 +37,11 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 })
 
+let polling = false
+
 async function checkVerified() {
+    if (polling) return
+    polling = true
     console.log(chalk.yellow(`[poll] checking for verified rows...`))
 
     await supabase
@@ -52,8 +56,8 @@ async function checkVerified() {
         .eq('verified', true)
         .eq('notified', false)
 
-    if (error) { console.error(chalk.red(`[poll] query error:`), error); return }
-    if (!data?.length) { console.log(chalk.yellow(`[poll] no rows found`)); return }
+    if (error) { console.error(chalk.red(`[poll] query error:`), error); polling = false; return }
+    if (!data?.length) { console.log(chalk.yellow(`[poll] no rows found`)); polling = false; return }
 
     console.log(chalk.yellow(`[poll] found ${data.length} row(s) to process`))
     for (const row of data) {
@@ -106,6 +110,7 @@ async function checkVerified() {
             console.error(chalk.red(`[poll] failed for ${row.user_id}:`), e.message)
         }
     }
+    polling = false
 }
 
 client.once(Events.ClientReady, (readyClient) => {
