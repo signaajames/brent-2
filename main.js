@@ -99,6 +99,11 @@ async function checkVerified() {
                 console.log(chalk.yellow(`[poll] proxycheck response: ${JSON.stringify(vpnData)}`))
                 if (vpnInfo?.proxy === 'yes') {
                     console.log(chalk.yellow(`[poll] vpn detected, removing role for user=${row.user_id}`))
+                    const delRes = await fetch(
+                        `https://discord.com/api/v10/guilds/${row.guild_id}/members/${row.user_id}/roles/${row.role_id}`,
+                        { method: 'DELETE', headers: { Authorization: `Bot ${process.env.BOT_TOKEN}` } }
+                    )
+                    console.log(chalk.yellow(`[poll] role remove status: ${delRes.status}`))
                     await supabase.from('verification_tokens').update({ notified: true, raw_ip: null }).eq('token', row.token)
                     continue
                 }
